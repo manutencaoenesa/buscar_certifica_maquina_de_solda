@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Busca de Manutenção - Central</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    /* === ESTILO ORIGINAL DO PROJETO DE SOLDA === */
+    body { background-color: #121212; padding-top: 60px; color: white; font-family: 'Roboto', sans-serif; }
+    
+    .search-card { 
+      border-radius: 15px; 
+      padding: 30px; 
+      background: #1e1e1e; 
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5); 
+      max-width: 450px;
+      margin: 0 auto;
+    }
+
+    .input-field input { 
+      color: white !important; 
+      border: 2px solid #424242 !important; 
+      border-radius: 10px !important;
+      padding: 0 15px !important;
+      width: 100% !important; 
+      box-sizing: border-box !important;
+      height: 60px !important;
+      font-size: 1.2rem !important;
+      margin: 0 !important;
+    }
+
+    /* Botão Azul de Pesquisa */
+    .btn-search { 
+      width: 100%; height: 55px; border-radius: 10px; font-weight: bold; 
+      background-color: #1a73e8 !important; 
+      margin-top: 20px;
+    }
+
+    #resultArea { display: none; margin-top: 40px; border-top: 1px solid #333; padding-top: 25px; }
+
+    /* Card Lateral Azul */
+    .info-box-styled { 
+      background: #262626; 
+      padding: 20px; 
+      border-radius: 8px; 
+      margin-bottom: 20px;
+      border-left: 5px solid #1a73e8; 
+    }
+
+    .label-small { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px; display: block; }
+    .data-value { font-size: 1.3rem; font-weight: bold; margin-bottom: 15px; display: block; word-break: break-word;}
+    
+    /* Cores de Status */
+    .status-ok { color: #2ecc71 !important; } /* Verde */
+    .status-missing { color: #f39c12 !important; } /* Laranja */
+
+    /* Botão Vermelho de PDF */
+    .btn-pdf { 
+      width: 100%; border-radius: 10px; background-color: #d32f2f !important; 
+      height: 55px; line-height: 55px; font-weight: bold;
+      display: block; text-align: center; color: white;
+    }
+    
+    .btn-pdf.disabled {
+      background-color: #444 !important;
+      color: #888 !important;
+      pointer-events: none;
+    }
+
+    /* Loading Spinner simples */
+    .spinner {
+      display: none;
+      width: 20px; height: 20px; margin-left: 10px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%; border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      display: inline-block; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="search-card">
+      <h5 class="center-align" style="margin-bottom: 30px;">
+        <i class="fas fa-tools" style="font-size: 20px; margin-right: 10px; color: #1a73e8;"></i>
+        Manutenção Interna
+      </h5>
+      
+      <div style="margin-bottom: 10px;">
+        <input type="text" id="patrimonioInput" autocomplete="off" placeholder="Digite o patrimônio (ex: 10435-0008)">
+      </div>
+      
+      <button class="btn btn-search waves-effect waves-light" id="btnSearch" onclick="realizarBusca()">
+        <span id="btnText">PESQUISAR</span>
+      </button>
+
+      <div id="resultArea">
+        <div class="info-box-styled">
+          
+          <span class="label-small">Equipamento / Modelo:</span>
+          <span id="resModelo" class="data-value">---</span>
+          
+          <span class="label-small">Patrimônio:</span>
+          <span id="resPat" class="data-value">---</span>
+          
+          <span class="label-small">Status do Registro:</span>
+          <span id="resStatus" class="data-value">---</span>
+        </div>
+        
+        <a id="btnLink" href="#" target="_blank" class="btn btn-pdf waves-effect waves-light">
+          ABRIR RELATÓRIO PDF
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+  <script>
+    // ⚠️ COLOQUE AQUI A URL DO SEU WEB APP DO GOOGLE APPS SCRIPT ⚠️
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdxgMVHEGgCPB9WSboYS3ynQRqT8dbk4xd__amqwY0kk_lE5Aj620jJK7a8a_hbulnAQ/exec";
+
+    const input = document.getElementById('patrimonioInput');
+    
+    // Permitir Enter para buscar
+    input.addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        realizarBusca();
+      }
+    });
+
+    async function realizarBusca() {
+      const val = input.value.trim();
+      if(!val) return;
+
+      const btn = document.getElementById('btnSearch');
+      const btnText = document.getElementById('btnText');
+      const resultArea = document.getElementById('resultArea');
+
+      // UI de Carregamento
+      btnText.innerText = "BUSCANDO...";
+      btn.disabled = true;
+      resultArea.style.display = 'none';
+
+      try {
+        // Faz a chamada para o Apps Script
+        const response = await fetch(`${SCRIPT_URL}?q=${encodeURIComponent(val)}`);
+        const data = await response.json();
+
+        // Restaura botão
+        btnText.innerText = "PESQUISAR";
+        btn.disabled = false;
+
+        if (data.encontrado) {
+          // Preenche os dados
+          document.getElementById('resModelo').innerText = data.modelo;
+          document.getElementById('resPat').innerText = data.patrimonio;
+          
+          const elStatus = document.getElementById('resStatus');
+          elStatus.innerText = data.statusTexto;
+
+          // Lógica Visual do Status e Botão
+          const btnLink = document.getElementById('btnLink');
+
+          if (data.temPdf) {
+            elStatus.className = 'data-value status-ok';
+            btnLink.href = data.link;
+            btnLink.classList.remove('disabled');
+            btnLink.innerText = "ABRIR RELATÓRIO PDF";
+          } else {
+            elStatus.className = 'data-value status-missing';
+            btnLink.removeAttribute('href');
+            btnLink.classList.add('disabled');
+            btnLink.innerText = "RELATÓRIO INDISPONÍVEL";
+          }
+
+          // Mostra resultado
+          resultArea.style.display = 'block';
+
+        } else {
+          M.toast({html: 'Equipamento não encontrado!', classes: 'red rounded'});
+        }
+
+      } catch (error) {
+        console.error(error);
+        btnText.innerText = "PESQUISAR";
+        btn.disabled = false;
+        M.toast({html: 'Erro ao conectar com a base de dados.', classes: 'red rounded'});
+      }
+    }
+  </script>
+</body>
+</html>
