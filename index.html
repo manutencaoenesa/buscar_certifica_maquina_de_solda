@@ -160,6 +160,9 @@
           
           <span id="txtValidade" class="status-text">---</span>
           
+          <span class="label-mini" style="margin-top: 15px;">Calibrado em</span>
+          <p id="txtCalibradoNa" class="desc-text" style="font-size: 1.1rem; color: var(--gold);">---</p>
+
           <p id="txtDebug" class="debug-info"></p>
         </div>
         
@@ -210,8 +213,9 @@
         const data = await response.json();
 
         if (data.encontrado) {
-          // Preenche Modelo
+          // Preenche Modelo e Local
           document.getElementById('txtModelo').innerText = data.modelo;
+          document.getElementById('txtCalibradoNa').innerText = data.calibradoNa;
           
           // Lógica de Validade (Cores)
           const elValidade = document.getElementById('txtValidade');
@@ -223,8 +227,8 @@
             elValidade.className = "status-text status-valid";
           }
 
-          // Linha de Debug (Útil para saber se pegou o último registro)
-          document.getElementById('txtDebug').innerText = `Registro #${data.linha} da base de dados`;
+          // Linha de Debug mostrando aba e linha
+          document.getElementById('txtDebug').innerText = `Encontrado em: ${data.aba} (Linha #${data.linha})`;
 
           // Configura o Botão
           if (data.temPdf && data.link) {
@@ -244,7 +248,7 @@
           resultArea.style.display = 'block';
           if(navigator.vibrate) navigator.vibrate(50);
         } else {
-          showToast("Patrimônio não encontrado na lista de certificados de calibração interna.", "error");
+          showToast("Patrimônio não localizado nas bases de dados.", "error");
         }
 
       } catch (error) {
